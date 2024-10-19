@@ -1,33 +1,20 @@
-import React, { useState } from 'react';
-import { hashFile, verifyDocumentHash } from '../utils/contractInteractions';
+import Web3 from 'web3';
+import { contractAddress, contractABI } from './contractABI';
 
-const VerifyFile = () => {
-  const [selectedFile, setSelectedFile] = useState(null);
+const web3 = new Web3(Web3.givenProvider);
+const contract = new web3.eth.Contract(contractABI, contractAddress);
 
-  const handleFileUpload = (e) => {
-    setSelectedFile(e.target.files[0]);
-  };
-
-  const handleSubmit = async () => {
-    if (!selectedFile) return;
-
-    const fileHash = await hashFile(selectedFile);
-    const timestamp = await verifyDocumentHash(fileHash);
-
-    if (timestamp) {
-      alert(`Document was stored on: ${new Date(timestamp * 1000).toLocaleString()}`);
-    } else {
-      alert('Document does not exist on the blockchain.');
-    }
-  };
-
-  return (
-    <div>
-      <h2>Verify Document</h2>
-      <input type="file" onChange={handleFileUpload} />
-      <button onClick={handleSubmit}>Verify</button>
-    </div>
-  );
+export const hashFile = async (file) => {
+  const arrayBuffer = await file.arrayBuffer();
+  const hash = web3.utils.sha3(new Uint8Array(arrayBuffer));
+  return hash;
 };
 
-export default VerifyFile;
+export const uploadDocumentHash = async (fileHash) => {
+  const accounts = await web3.eth.getAccounts();
+  await contract.methods.addDocument(fileHash).send({ from: accounts[0] });
+};
+
+export const verifyDocumentHash = async (fileHash) => {
+  return await contract.methods.verifyDocument(fileHash).call();
+};
